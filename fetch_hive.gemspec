@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "fetch_hive"
-  spec.version       = "0.2.2"
+  spec.version       = "0.2.3"
   spec.authors       = ["Fetch Hive"]
   spec.email         = ["tom@fetchhive.com"]
   spec.summary       = "Official Ruby SDK for the Fetch Hive API"

@@ -1,15 +1,15 @@
-# Fetch Hive Ruby SDK
+# fetch_hive
 
-Official Ruby SDK for the [Fetch Hive](https://fetchhive.com) API — invoke prompts, workflows, and agents with a clean, idiomatic interface.
+Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts, workflows, and agents from your application.
 
-**Version:** 0.2.2
+[![Gem Version](https://badge.fury.io/rb/fetch_hive.svg)](https://rubygems.org/gems/fetch_hive)
 
 ## Installation
 
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.2.2"
+gem "fetch_hive", "~> 0.2.3"
 ```
 
 Then run:
@@ -30,23 +30,96 @@ gem install fetch_hive
 require "fetch_hive"
 
 client = FetchHive::Client.new(api_key: ENV["FETCH_HIVE_API_KEY"])
+```
 
-# Invoke a prompt
-result = client.invoke_prompt(deployment: "my-prompt", inputs: { name: "Alice" })
+Get your API key from the [Fetch Hive dashboard](https://app.fetchhive.com).
+
+## Invoke a prompt
+
+```ruby
+result = client.invoke_prompt(
+  deployment: "my-prompt",
+  inputs: { name: "Alice", topic: "machine learning" }
+)
 puts result["response"]
+```
 
-# Invoke a workflow
-run = client.invoke_workflow(deployment: "my-workflow", inputs: { topic: "AI" })
-puts run["output"]
+## Invoke a prompt (streaming)
 
-# Send a message to an agent (non-streaming)
-reply = client.invoke_agent(agent: "my-agent", message: "Hello!")
-puts reply["response"]
-
-# Stream an agent response
-client.invoke_agent_stream(agent: "my-agent", message: "Tell me a story") do |chunk|
+```ruby
+client.invoke_prompt_stream(deployment: "my-prompt", inputs: { name: "Alice" }) do |chunk|
   print chunk["content"] if chunk["type"] == "delta"
 end
+```
+
+## Invoke a workflow
+
+```ruby
+run = client.invoke_workflow(
+  deployment: "my-workflow",
+  inputs: { customer_id: "42" }
+)
+puts run["status"], run["output"]
+```
+
+## Invoke a workflow (async)
+
+```ruby
+run = client.invoke_workflow(
+  deployment: "my-workflow",
+  inputs: { customer_id: "42" },
+  async_mode: true,
+  callback_url: "https://example.com/webhook"
+)
+puts "Queued: #{run['run_id']}"
+```
+
+## Invoke an agent
+
+```ruby
+reply = client.invoke_agent(
+  agent: "my-agent",
+  message: "What is the weather in London?"
+)
+puts reply["response"]
+```
+
+## Invoke an agent (streaming)
+
+```ruby
+client.invoke_agent_stream(
+  agent: "my-agent",
+  message: "What is the weather in London?",
+  thread_id: "session-abc123"  # optional — persist conversation history
+) do |chunk|
+  case chunk["type"]
+  when "delta"  then print chunk["content"]
+  when "tool_start" then puts "\nCalling tool: #{chunk['tool_name']}"
+  end
+end
+```
+
+## Multimodal (image) inputs
+
+```ruby
+result = client.invoke_agent(
+  agent: "vision-agent",
+  message: "Describe this image",
+  image_urls: ["https://example.com/photo.jpg"]
+)
+puts result["response"]
+```
+
+## Authentication
+
+Pass the API key to the constructor or set the environment variable:
+
+```bash
+export FETCH_HIVE_API_KEY=fhk_...
+```
+
+```ruby
+client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 ```
 
 ## Configuration
@@ -62,3 +135,11 @@ end
 - [Fetch Hive dashboard](https://app.fetchhive.com)
 - [API documentation](https://docs.fetchhive.com)
 - [GitHub](https://github.com/Fetch-Hive/ruby-sdk)
+
+## Version
+
+0.2.3
+
+## License
+
+MIT — see [LICENSE](LICENSE).
