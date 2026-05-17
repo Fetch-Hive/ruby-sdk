@@ -2,14 +2,14 @@
 
 Official Ruby SDK for the [Fetch Hive](https://fetchhive.com) API — invoke prompts, workflows, and agents with a clean, idiomatic interface.
 
-**Version:** 0.1.9
+**Version:** 0.2.0
 
 ## Installation
 
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.1.9"
+gem "fetch_hive", "~> 0.2.0"
 ```
 
 Then run:
