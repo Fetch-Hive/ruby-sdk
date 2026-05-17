@@ -17,7 +17,11 @@ module FetchHive
   #
   #   # Streaming agent
   #   client.invoke_agent_stream(agent: "my-agent", message: "Hello") do |chunk|
-  #     print chunk["content"] if chunk["type"] == "delta"
+  #     case chunk["type"]
+  #     when "response" then print chunk["response"]
+  #     when "tool"     then puts "\nCalling tool: #{chunk['tool']}"
+  #     when "usage"    then puts "\nUsage: #{chunk['usage']}"
+  #     end
   #   end
   #
   class Client

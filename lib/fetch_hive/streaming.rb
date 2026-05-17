@@ -9,7 +9,10 @@ module FetchHive
   #
   #   io = response.body  # any IO or string
   #   FetchHive::Streaming.parse_sse(io) do |event|
-  #     puts event["content"] if event["type"] == "delta"
+  #     case event["type"]
+  #     when "response" then print event["response"]
+  #     when "usage"    then puts "\nUsage: #{event['usage']}"
+  #     end
   #   end
   #
   module Streaming

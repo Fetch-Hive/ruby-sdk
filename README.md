@@ -9,7 +9,7 @@ Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts,
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.2.3"
+gem "fetch_hive", "~> 0.2.4"
 ```
 
 Then run:
@@ -48,7 +48,10 @@ puts result["response"]
 
 ```ruby
 client.invoke_prompt_stream(deployment: "my-prompt", inputs: { name: "Alice" }) do |chunk|
-  print chunk["content"] if chunk["type"] == "delta"
+  case chunk["type"]
+  when "response" then print chunk["response"]
+  when "usage"    then puts "\nUsage: #{chunk['usage']}"
+  end
 end
 ```
 
@@ -93,8 +96,9 @@ client.invoke_agent_stream(
   thread_id: "session-abc123"  # optional — persist conversation history
 ) do |chunk|
   case chunk["type"]
-  when "delta"  then print chunk["content"]
-  when "tool_start" then puts "\nCalling tool: #{chunk['tool_name']}"
+  when "response" then print chunk["response"]
+  when "tool"     then puts "\nCalling tool: #{chunk['tool']}"
+  when "usage"    then puts "\nUsage: #{chunk['usage']}"
   end
 end
 ```
@@ -138,7 +142,7 @@ client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 
 ## Version
 
-0.2.3
+0.2.4
 
 ## License
 

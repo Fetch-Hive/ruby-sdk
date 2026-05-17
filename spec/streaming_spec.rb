@@ -14,14 +14,14 @@ RSpec.describe FetchHive::Streaming do
   # SSE1 — Parses a clean single-chunk stream into one event per data: line
   describe "SSE1: clean stream" do
     it "yields one event per data: line" do
-      body = "data: {\"type\":\"delta\",\"content\":\"Hi\"}\n" \
-             "data: {\"type\":\"done\"}\n" \
+      body = "data: {\"type\":\"response\",\"response\":\"Hi\"}\n" \
+             "data: {\"type\":\"usage\",\"request_id\":\"r1\",\"stop_reason\":\"completed\"}\n" \
              "data: [DONE]\n"
 
       events = parse(body)
       expect(events.length).to eq(2)
-      expect(events[0]).to eq("type" => "delta", "content" => "Hi")
-      expect(events[1]).to eq("type" => "done")
+      expect(events[0]).to eq("type" => "response", "response" => "Hi")
+      expect(events[1]).to eq("type" => "usage", "request_id" => "r1", "stop_reason" => "completed")
     end
   end
 
@@ -29,8 +29,8 @@ RSpec.describe FetchHive::Streaming do
   describe "SSE2: split-chunk reassembly" do
     it "reconstructs events split across multiple reads" do
       # Simulate a stream whose content is split mid-line
-      chunk1 = "data: {\"type\":\"del"
-      chunk2 = "ta\",\"content\":\"A\"}\n"
+      chunk1 = "data: {\"type\":\"res"
+      chunk2 = "ponse\",\"response\":\"A\"}\n"
       chunk3 = "data: [DONE]\n"
 
       combined = StringIO.new(chunk1 + chunk2 + chunk3)
@@ -38,12 +38,12 @@ RSpec.describe FetchHive::Streaming do
       described_class.parse_sse(combined) { |e| events << e }
 
       expect(events.length).to eq(1)
-      expect(events[0]).to eq("type" => "delta", "content" => "A")
+      expect(events[0]).to eq("type" => "response", "response" => "A")
     end
 
     it "handles newlines split across chunks" do
       # Body with the newline separator at the boundary
-      body1 = "data: {\"type\":\"delta\"}"
+      body1 = "data: {\"type\":\"response\"}"
       body2 = "\ndata: [DONE]\n"
       events = []
       described_class.parse_sse(StringIO.new(body1 + body2)) { |e| events << e }
@@ -58,12 +58,12 @@ RSpec.describe FetchHive::Streaming do
              "\n" \
              "event: message\n" \
              "id: 42\n" \
-             "data: {\"type\":\"delta\",\"content\":\"X\"}\n" \
+             "data: {\"type\":\"response\",\"response\":\"X\"}\n" \
              "data: [DONE]\n"
 
       events = parse(body)
       expect(events.length).to eq(1)
-      expect(events[0]["content"]).to eq("X")
+      expect(events[0]["response"]).to eq("X")
     end
   end
 
@@ -71,26 +71,26 @@ RSpec.describe FetchHive::Streaming do
   describe "SSE4: malformed JSON skipped" do
     it "silently skips lines with invalid JSON and continues" do
       body = "data: {broken json\n" \
-             "data: {\"type\":\"delta\"}\n" \
+             "data: {\"type\":\"response\"}\n" \
              "data: [DONE]\n"
 
       events = []
       expect { events = parse(body) }.not_to raise_error
       expect(events.length).to eq(1)
-      expect(events[0]["type"]).to eq("delta")
+      expect(events[0]["type"]).to eq("response")
     end
   end
 
   # SSE5 — Stops at [DONE]
   describe "SSE5: stops at [DONE]" do
     it "stops yielding events after data: [DONE]" do
-      body = "data: {\"type\":\"delta\"}\n" \
+      body = "data: {\"type\":\"response\"}\n" \
              "data: [DONE]\n" \
              "data: {\"type\":\"should_not_appear\"}\n"
 
       events = parse(body)
       expect(events.length).to eq(1)
-      expect(events[0]["type"]).to eq("delta")
+      expect(events[0]["type"]).to eq("response")
     end
 
     it "handles [DONE] with surrounding whitespace" do

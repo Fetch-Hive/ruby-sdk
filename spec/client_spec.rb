@@ -263,8 +263,8 @@ RSpec.describe FetchHive::Client do
   # ── Streaming ─────────────────────────────────────────────────────────────────
 
   let(:sse_body) do
-    "data: {\"type\":\"delta\",\"content\":\"Hello\"}\n" \
-    "data: {\"type\":\"done\",\"request_id\":\"r1\"}\n" \
+    "data: {\"type\":\"response\",\"response\":\"Hello\"}\n" \
+    "data: {\"type\":\"usage\",\"request_id\":\"r1\",\"stop_reason\":\"completed\"}\n" \
     "data: [DONE]\n"
   end
 
@@ -277,7 +277,7 @@ RSpec.describe FetchHive::Client do
 
       events = []
       client.invoke_prompt_stream(deployment: "dep") { |e| events << e }
-      expect(events.map { |e| e["type"] }).to eq(%w[delta done])
+      expect(events.map { |e| e["type"] }).to eq(%w[response usage])
     end
   end
 
@@ -290,7 +290,7 @@ RSpec.describe FetchHive::Client do
 
       events = []
       client.invoke_agent_stream(agent: "ag", message: "hi") { |e| events << e }
-      expect(events.map { |e| e["type"] }).to eq(%w[delta done])
+      expect(events.map { |e| e["type"] }).to eq(%w[response usage])
     end
   end
 

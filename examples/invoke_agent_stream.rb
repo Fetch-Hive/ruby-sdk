@@ -9,10 +9,12 @@ client.invoke_agent_stream(
   message: "Tell me a short story about a robot learning Ruby"
 ) do |chunk|
   case chunk["type"]
-  when "delta"
-    print chunk["content"]
+  when "response"
+    print chunk["response"]
     $stdout.flush
-  when "done"
+  when "tool"
+    puts "\nCalling tool: #{chunk['tool']}"
+  when "usage"
     puts "\n\n[Done — request_id: #{chunk['request_id']}]"
   end
 end
