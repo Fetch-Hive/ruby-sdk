@@ -6,7 +6,8 @@ client = FetchHive::Client.new(api_key: ENV.fetch("FETCH_HIVE_API_KEY"))
 
 client.invoke_agent_stream(
   agent: "my-agent",
-  message: "Tell me a short story about a robot learning Ruby"
+  message: "Tell me a short story about a robot learning Ruby",
+  metadata: {}
 ) do |chunk|
   case chunk["type"]
   when "response"

@@ -9,7 +9,7 @@ Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts,
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.2.5"
+gem "fetch_hive", "~> 0.2.6"
 ```
 
 Then run:
@@ -39,7 +39,8 @@ Get your API key from the [Fetch Hive dashboard](https://app.fetchhive.com).
 ```ruby
 result = client.invoke_prompt(
   deployment: "my-prompt",
-  inputs: { name: "Alice", topic: "machine learning" }
+  inputs: { name: "Alice", topic: "machine learning" },
+  metadata: {}
 )
 puts result["response"]
 ```
@@ -60,7 +61,8 @@ end
 ```ruby
 run = client.invoke_workflow(
   deployment: "my-workflow",
-  inputs: { customer_id: "42" }
+  inputs: { customer_id: "42" },
+  metadata: {}
 )
 puts run["status"], run["output"]
 ```
@@ -82,10 +84,15 @@ puts "Queued: #{run['run_id']}"
 ```ruby
 reply = client.invoke_agent(
   agent: "my-agent",
-  message: "What is the weather in London?"
+  message: "What is the weather in London?",
+  metadata: {}
 )
 puts reply["response"]
 ```
+
+## Metadata
+
+Pass optional `metadata` on prompt, workflow, or agent invokes to attach flat audit fields for log display and filtering. Metadata values must be strings, numbers, booleans, or `nil`.
 
 ## Invoke an agent (streaming)
 
@@ -142,7 +149,7 @@ client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 
 ## Version
 
-0.2.5
+0.2.6
 
 ## License
 
