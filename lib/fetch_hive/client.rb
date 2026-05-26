@@ -42,32 +42,35 @@ module FetchHive
     # ── Prompt ─────────────────────────────────────────────────────────────────
 
     # Invoke a prompt deployment and return the full response hash.
-    def invoke_prompt(deployment:, variant: nil, inputs: nil, user: nil)
+    def invoke_prompt(deployment:, variant: nil, inputs: nil, user: nil, metadata: nil)
       body = { deployment: deployment, streaming: false }
       body[:variant] = variant if variant
       body[:inputs]  = inputs  if inputs
       body[:user]    = user    if user
+      body[:metadata] = metadata if metadata
       post("/invoke", body)
     end
 
     # Invoke a prompt deployment and stream SSE events.
     # Yields each parsed event hash. Returns an Enumerator when no block given.
-    def invoke_prompt_stream(deployment:, variant: nil, inputs: nil, user: nil, &block)
+    def invoke_prompt_stream(deployment:, variant: nil, inputs: nil, user: nil, metadata: nil, &block)
       body = { deployment: deployment, streaming: true }
       body[:variant] = variant if variant
       body[:inputs]  = inputs  if inputs
       body[:user]    = user    if user
+      body[:metadata] = metadata if metadata
       post_stream("/invoke", body, &block)
     end
 
     # ── Workflow ────────────────────────────────────────────────────────────────
 
     # Invoke a workflow deployment (sync or async).
-    def invoke_workflow(deployment:, variant: nil, inputs: nil, async_mode: false, callback_url: nil, user: nil)
+    def invoke_workflow(deployment:, variant: nil, inputs: nil, async_mode: false, callback_url: nil, user: nil, metadata: nil)
       body = { deployment: deployment }
       body[:variant] = variant if variant
       body[:inputs]  = inputs  if inputs
       body[:user]    = user    if user
+      body[:metadata] = metadata if metadata
       if async_mode
         body[:async] = { enabled: true }
         body[:async][:callback_url] = callback_url if callback_url
@@ -78,10 +81,11 @@ module FetchHive
     # ── Agent ───────────────────────────────────────────────────────────────────
 
     # Send a message to an agent and return the full response hash.
-    def invoke_agent(agent:, message:, thread_id: nil, user: nil, messages: nil, image_urls: nil)
+    def invoke_agent(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil)
       body = { agent: agent, message: message, streaming: false }
       body[:thread_id]  = thread_id  if thread_id
       body[:user]       = user       if user
+      body[:metadata] = metadata if metadata
       body[:messages]   = messages   if messages
       body[:image_urls] = image_urls if image_urls
       post("/agent/invoke", body)
@@ -89,10 +93,11 @@ module FetchHive
 
     # Send a message to an agent and stream SSE events.
     # Yields each parsed event hash. Returns an Enumerator when no block given.
-    def invoke_agent_stream(agent:, message:, thread_id: nil, user: nil, messages: nil, image_urls: nil, &block)
+    def invoke_agent_stream(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, &block)
       body = { agent: agent, message: message, streaming: true }
       body[:thread_id]  = thread_id  if thread_id
       body[:user]       = user       if user
+      body[:metadata] = metadata if metadata
       body[:messages]   = messages   if messages
       body[:image_urls] = image_urls if image_urls
       post_stream("/agent/invoke", body, &block)

@@ -9,7 +9,7 @@ Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts,
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.2.4"
+gem "fetch_hive", "~> 0.2.5"
 ```
 
 Then run:
@@ -142,7 +142,7 @@ client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 
 ## Version
 
-0.2.4
+0.2.5
 
 ## License
 

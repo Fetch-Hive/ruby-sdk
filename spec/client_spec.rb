@@ -135,12 +135,23 @@ RSpec.describe FetchHive::Client do
       expect(stub).to have_been_requested
     end
 
-    it "includes variant, inputs, and user when provided" do
+    it "includes variant, inputs, user, and metadata when provided" do
       stub = stub_request(:post, "#{base_url}/invoke")
-        .with(body: hash_including("variant" => "v2", "inputs" => { "k" => "v" }, "user" => "u1"))
+        .with(body: hash_including(
+          "variant" => "v2",
+          "inputs" => { "k" => "v" },
+          "user" => "u1",
+          "metadata" => { "customer_id" => "cus_123", "trial" => false, "invoice_count" => 12, "region" => nil }
+        ))
         .to_return(status: 200, body: "{}", headers: { "Content-Type" => "application/json" })
 
-      client.invoke_prompt(deployment: "dep", variant: "v2", inputs: { k: "v" }, user: "u1")
+      client.invoke_prompt(
+        deployment: "dep",
+        variant: "v2",
+        inputs: { k: "v" },
+        user: "u1",
+        metadata: { customer_id: "cus_123", trial: false, invoice_count: 12, region: nil }
+      )
       expect(stub).to have_been_requested
     end
 
@@ -153,6 +164,7 @@ RSpec.describe FetchHive::Client do
       expect(body).not_to have_key("variant")
       expect(body).not_to have_key("inputs")
       expect(body).not_to have_key("user")
+      expect(body).not_to have_key("metadata")
     end
   end
 
@@ -199,6 +211,15 @@ RSpec.describe FetchHive::Client do
       body = JSON.parse(stub.with.body)
       expect(body).not_to have_key("async")
     end
+
+    it "passes metadata through" do
+      stub = stub_request(:post, "#{base_url}/workflow/invoke")
+        .with(body: hash_including("metadata" => { "customer_id" => "cus_123", "invoice_count" => 12 }))
+        .to_return(status: 200, body: '{"status":"completed"}', headers: { "Content-Type" => "application/json" })
+
+      client.invoke_workflow(deployment: "wf", metadata: { customer_id: "cus_123", invoice_count: 12 })
+      expect(stub).to have_been_requested
+    end
   end
 
   # ── Agent ─────────────────────────────────────────────────────────────────────
@@ -228,11 +249,12 @@ RSpec.describe FetchHive::Client do
 
   # AG3 — Optional fields included only when provided
   describe "AG3: invoke_agent optional fields" do
-    it "includes thread_id, user, messages, image_urls when provided" do
+    it "includes thread_id, user, metadata, messages, image_urls when provided" do
       stub = stub_request(:post, "#{base_url}/agent/invoke")
         .with(body: hash_including(
           "thread_id"  => "t1",
           "user"       => "u1",
+          "metadata" => { "customer_id" => "cus_123", "trial" => false },
           "messages"   => [{ "role" => "user", "content" => "hi" }],
           "image_urls" => ["https://img.example.com/a.png"]
         ))
@@ -241,6 +263,7 @@ RSpec.describe FetchHive::Client do
       client.invoke_agent(
         agent: "ag", message: "hi",
         thread_id: "t1", user: "u1",
+        metadata: { customer_id: "cus_123", trial: false },
         messages: [{ role: "user", content: "hi" }],
         image_urls: ["https://img.example.com/a.png"]
       )
@@ -255,6 +278,7 @@ RSpec.describe FetchHive::Client do
       body = JSON.parse(stub.with.body)
       expect(body).not_to have_key("thread_id")
       expect(body).not_to have_key("user")
+      expect(body).not_to have_key("metadata")
       expect(body).not_to have_key("messages")
       expect(body).not_to have_key("image_urls")
     end
@@ -272,11 +296,11 @@ RSpec.describe FetchHive::Client do
   describe "S1: invoke_prompt_stream" do
     it "sends streaming: true and yields parsed SSE events" do
       stub_request(:post, "#{base_url}/invoke")
-        .with(body: hash_including("streaming" => true))
+        .with(body: hash_including("streaming" => true, "metadata" => { "plan" => "enterprise" }))
         .to_return(status: 200, body: sse_body, headers: { "Content-Type" => "text/event-stream" })
 
       events = []
-      client.invoke_prompt_stream(deployment: "dep") { |e| events << e }
+      client.invoke_prompt_stream(deployment: "dep", metadata: { plan: "enterprise" }) { |e| events << e }
       expect(events.map { |e| e["type"] }).to eq(%w[response usage])
     end
   end
@@ -285,11 +309,11 @@ RSpec.describe FetchHive::Client do
   describe "S2: invoke_agent_stream" do
     it "sends streaming: true and yields parsed SSE events" do
       stub_request(:post, "#{base_url}/agent/invoke")
-        .with(body: hash_including("streaming" => true))
+        .with(body: hash_including("streaming" => true, "metadata" => { "plan" => "enterprise" }))
         .to_return(status: 200, body: sse_body, headers: { "Content-Type" => "text/event-stream" })
 
       events = []
-      client.invoke_agent_stream(agent: "ag", message: "hi") { |e| events << e }
+      client.invoke_agent_stream(agent: "ag", message: "hi", metadata: { plan: "enterprise" }) { |e| events << e }
       expect(events.map { |e| e["type"] }).to eq(%w[response usage])
     end
   end
