@@ -48,7 +48,7 @@ module FetchHive
       body[:inputs]  = inputs  if inputs
       body[:user]    = user    if user
       body[:metadata] = metadata if metadata
-      post("/invoke", body)
+      post("/prompt/invoke", body)
     end
 
     # Invoke a prompt deployment and stream SSE events.
@@ -59,7 +59,7 @@ module FetchHive
       body[:inputs]  = inputs  if inputs
       body[:user]    = user    if user
       body[:metadata] = metadata if metadata
-      post_stream("/invoke", body, &block)
+      post_stream("/prompt/invoke", body, &block)
     end
 
     # ── Workflow ────────────────────────────────────────────────────────────────
@@ -81,26 +81,144 @@ module FetchHive
     # ── Agent ───────────────────────────────────────────────────────────────────
 
     # Send a message to an agent and return the full response hash.
-    def invoke_agent(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil)
+    def invoke_agent(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil)
       body = { agent: agent, message: message, streaming: false }
       body[:thread_id]  = thread_id  if thread_id
       body[:user]       = user       if user
       body[:metadata] = metadata if metadata
       body[:messages]   = messages   if messages
-      body[:image_urls] = image_urls if image_urls
+      body[:attachments] = attachments || image_urls if attachments || image_urls
+      body[:known_artifact_refs] = known_artifact_refs if known_artifact_refs
+      body[:artifact_refs] = artifact_refs if artifact_refs
       post("/agent/invoke", body)
     end
 
     # Send a message to an agent and stream SSE events.
     # Yields each parsed event hash. Returns an Enumerator when no block given.
-    def invoke_agent_stream(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, &block)
+    def invoke_agent_stream(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil, &block)
       body = { agent: agent, message: message, streaming: true }
       body[:thread_id]  = thread_id  if thread_id
       body[:user]       = user       if user
       body[:metadata] = metadata if metadata
       body[:messages]   = messages   if messages
-      body[:image_urls] = image_urls if image_urls
+      body[:attachments] = attachments || image_urls if attachments || image_urls
+      body[:known_artifact_refs] = known_artifact_refs if known_artifact_refs
+      body[:artifact_refs] = artifact_refs if artifact_refs
       post_stream("/agent/invoke", body, &block)
+    end
+
+    # ── Hive Agent ──────────────────────────────────────────────────────────────
+
+    # Start a Hive Agent run asynchronously. Requires a callback URL.
+    def invoke_hive_agent(hive_agent:, objective:, callback_url:, sources: nil, metadata: nil)
+      raise ArgumentError, "callback_url is required for Hive Agent invocation" if callback_url.nil? || callback_url.to_s.strip.empty?
+
+      body = {
+        hive_agent: hive_agent,
+        objective: objective,
+        async: { enabled: true, callback_url: callback_url }
+      }
+      body[:sources] = sources if sources
+      body[:metadata] = metadata if metadata
+      post("/hive-agent/invoke", body)
+    end
+
+    # ── Public resources ────────────────────────────────────────────────────────
+
+    def get_request(id:)
+      request("GET", "/public/requests/#{id}")
+    end
+
+    def list_knowledge_bases(workspace_id:)
+      request("GET", "/public/workspaces/#{workspace_id}/knowledge_bases")
+    end
+
+    def get_knowledge_base(workspace_id:, id:)
+      request("GET", "/public/workspaces/#{workspace_id}/knowledge_bases/#{id}")
+    end
+
+    def create_knowledge_base(workspace_id:, knowledge_base:)
+      post("/public/workspaces/#{workspace_id}/knowledge_bases", { knowledge_base: knowledge_base })
+    end
+
+    def update_knowledge_base(workspace_id:, id:, knowledge_base:)
+      request("PATCH", "/public/workspaces/#{workspace_id}/knowledge_bases/#{id}", { knowledge_base: knowledge_base })
+    end
+
+    def delete_knowledge_base(workspace_id:, id:)
+      request("DELETE", "/public/workspaces/#{workspace_id}/knowledge_bases/#{id}")
+    end
+
+    def search_knowledge_base(workspace_id:, id:, **params)
+      post("/public/workspaces/#{workspace_id}/knowledge_bases/#{id}/search", params)
+    end
+
+    def list_knowledge_base_items(workspace_id:, knowledge_base_id:)
+      request("GET", "/public/workspaces/#{workspace_id}/knowledge_bases/#{knowledge_base_id}/items")
+    end
+
+    def get_knowledge_base_item(workspace_id:, knowledge_base_id:, id:)
+      request("GET", "/public/workspaces/#{workspace_id}/knowledge_bases/#{knowledge_base_id}/items/#{id}")
+    end
+
+    def create_knowledge_base_item(workspace_id:, knowledge_base_id:, knowledge_base_item:)
+      post("/public/workspaces/#{workspace_id}/knowledge_bases/#{knowledge_base_id}/items", { knowledge_base_item: knowledge_base_item })
+    end
+
+    def update_knowledge_base_item(workspace_id:, knowledge_base_id:, id:, knowledge_base_item:)
+      request("PATCH", "/public/workspaces/#{workspace_id}/knowledge_bases/#{knowledge_base_id}/items/#{id}", { knowledge_base_item: knowledge_base_item })
+    end
+
+    def delete_knowledge_base_item(workspace_id:, knowledge_base_id:, id:)
+      request("DELETE", "/public/workspaces/#{workspace_id}/knowledge_bases/#{knowledge_base_id}/items/#{id}")
+    end
+
+    def regenerate_knowledge_base_item(workspace_id:, knowledge_base_id:, id:)
+      post("/public/workspaces/#{workspace_id}/knowledge_bases/#{knowledge_base_id}/items/#{id}/regenerate", {})
+    end
+
+    def list_agents(workspace_id:)
+      request("GET", "/public/workspaces/#{workspace_id}/agents")
+    end
+
+    def get_agent(workspace_id:, id:)
+      request("GET", "/public/workspaces/#{workspace_id}/agents/#{id}")
+    end
+
+    def create_agent(workspace_id:, agent:)
+      post("/public/workspaces/#{workspace_id}/agents", { agent: agent })
+    end
+
+    def update_agent(workspace_id:, id:, agent:)
+      request("PATCH", "/public/workspaces/#{workspace_id}/agents/#{id}", { agent: agent })
+    end
+
+    def delete_agent(workspace_id:, id:)
+      request("DELETE", "/public/workspaces/#{workspace_id}/agents/#{id}")
+    end
+
+    def get_agent_chat(workspace_id:, agent_id:, chat_id:)
+      request("GET", "/public/workspaces/#{workspace_id}/agents/#{agent_id}/chats/#{chat_id}")
+    end
+
+    def create_agent_chat(workspace_id:, agent_id:, chat:)
+      post("/public/workspaces/#{workspace_id}/agents/#{agent_id}/chats", { chat: chat })
+    end
+
+    def update_agent_chat(workspace_id:, agent_id:, chat_id:, chat:)
+      request("PATCH", "/public/workspaces/#{workspace_id}/agents/#{agent_id}/chats/#{chat_id}", { chat: chat })
+    end
+
+    def delete_agent_chat(workspace_id:, agent_id:, chat_id:)
+      request("DELETE", "/public/workspaces/#{workspace_id}/agents/#{agent_id}/chats/#{chat_id}")
+    end
+
+    def clear_agent_chat_messages(workspace_id:, agent_id:, chat_id:)
+      request("PATCH", "/public/workspaces/#{workspace_id}/agents/#{agent_id}/chats/#{chat_id}/clear_messages", {})
+    end
+
+    def list_agent_chat_messages(workspace_id:, agent_id:, chat_id:)
+      request("GET", "/public/workspaces/#{workspace_id}/agents/#{agent_id}/chats/#{chat_id}/messages")
     end
 
     private
@@ -113,17 +231,25 @@ module FetchHive
     end
 
     def connection
-      Faraday.new(url: @base_url, request: { timeout: @timeout }) do |f|
+      # Build Faraday without a url prefix. Absolute paths like `/prompt/invoke`
+      # replace Faraday's prefix path (`/v1`), which would drop `/v1` from the URL.
+      Faraday.new(request: { timeout: @timeout }) do |f|
         f.adapter Faraday.default_adapter
       end
     end
 
+    def full_url(path)
+      "#{@base_url}#{path}"
+    end
+
     def post(path, body)
-      resp = connection.post(path) do |req|
-        req.headers.merge!(default_headers)
-        req.body = JSON.generate(body)
-      end
+      request("POST", path, body)
+    end
+
+    def request(method, path, body = nil)
+      resp = connection.run_request(method.downcase.to_sym, full_url(path), body && JSON.generate(body), default_headers)
       raise "FetchHive API error #{resp.status}: #{resp.body}" unless resp.success?
+      return {} if resp.body.nil? || resp.body.empty?
 
       JSON.parse(resp.body)
     end
@@ -134,11 +260,11 @@ module FetchHive
       io, writer = IO.pipe
 
       thread = Thread.new do
-        conn = Faraday.new(url: @base_url, request: { timeout: @timeout }) do |f|
+        conn = Faraday.new(request: { timeout: @timeout }) do |f|
           f.adapter Faraday.default_adapter
         end
 
-        resp = conn.post(path) do |req|
+        resp = conn.post(full_url(path)) do |req|
           req.headers.merge!(default_headers)
           req.body = JSON.generate(body)
           req.options.on_data = proc do |chunk, _size, env|
