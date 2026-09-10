@@ -322,7 +322,7 @@ RSpec.describe FetchHive::Client do
       client.invoke_hive_agent(hive_agent: "agt_1", objective: "Research competitors", callback_url: "https://example.com/cb")
       expect(a_request(:post, "#{base_url}/hive-agent/invoke").with { |req|
         body = JSON.parse(req.body)
-        !body.key?("sources") && !body.key?("metadata")
+        !body.key?("sources") && !body.key?("metadata") && !body.key?("unattended") && !body.key?("budget_policy")
       }).to have_been_made
     end
 
@@ -330,7 +330,9 @@ RSpec.describe FetchHive::Client do
       stub = stub_request(:post, "#{base_url}/hive-agent/invoke")
         .with(body: hash_including(
           "sources" => { "website_urls" => ["https://example.com"] },
-          "metadata" => { "customer_id" => "cus_123" }
+          "metadata" => { "customer_id" => "cus_123" },
+          "unattended" => true,
+          "budget_policy" => "stop"
         ))
         .to_return(status: 202, body: '{"status":"pending"}', headers: { "Content-Type" => "application/json" })
 
@@ -339,7 +341,9 @@ RSpec.describe FetchHive::Client do
         objective: "Research competitors",
         callback_url: "https://example.com/cb",
         sources: { website_urls: ["https://example.com"] },
-        metadata: { customer_id: "cus_123" }
+        metadata: { customer_id: "cus_123" },
+        unattended: true,
+        budget_policy: "stop"
       )
       expect(stub).to have_been_requested
     end
@@ -402,6 +406,36 @@ RSpec.describe FetchHive::Client do
 
       result = client.get_request(id: "req_1")
       expect(result).to eq("request" => { "id" => "req_1" })
+    end
+  end
+
+  describe "D1: get_agent_delegation" do
+    it "GETs /agent/delegations/:id" do
+      stub_request(:get, "#{base_url}/agent/delegations/del_1")
+        .to_return(status: 200, body: '{"id":"del_1","status":"pending"}', headers: { "Content-Type" => "application/json" })
+
+      result = client.get_agent_delegation(id: "del_1")
+      expect(result).to eq("id" => "del_1", "status" => "pending")
+    end
+  end
+
+  describe "D2: cancel_agent_delegation" do
+    it "POSTs /agent/delegations/:id/cancel" do
+      stub_request(:post, "#{base_url}/agent/delegations/del_1/cancel")
+        .to_return(status: 200, body: '{"id":"del_1","status":"cancelled"}', headers: { "Content-Type" => "application/json" })
+
+      result = client.cancel_agent_delegation(id: "del_1")
+      expect(result).to eq("id" => "del_1", "status" => "cancelled")
+    end
+  end
+
+  describe "D3: list_thread_delegations" do
+    it "GETs /agent/threads/:thread_id/delegations" do
+      stub_request(:get, "#{base_url}/agent/threads/thread-1/delegations")
+        .to_return(status: 200, body: '{"delegations":[{"id":"del_1"}]}', headers: { "Content-Type" => "application/json" })
+
+      result = client.list_thread_delegations(thread_id: "thread-1")
+      expect(result).to eq("delegations" => [{ "id" => "del_1" }])
     end
   end
 

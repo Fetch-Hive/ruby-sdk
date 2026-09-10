@@ -81,7 +81,7 @@ module FetchHive
     # ── Agent ───────────────────────────────────────────────────────────────────
 
     # Send a message to an agent and return the full response hash.
-    def invoke_agent(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil)
+    def invoke_agent(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil, async: nil)
       body = { agent: agent, message: message, streaming: false }
       body[:thread_id]  = thread_id  if thread_id
       body[:user]       = user       if user
@@ -90,6 +90,7 @@ module FetchHive
       body[:attachments] = attachments || image_urls if attachments || image_urls
       body[:known_artifact_refs] = known_artifact_refs if known_artifact_refs
       body[:artifact_refs] = artifact_refs if artifact_refs
+      body[:async] = async if async
       post("/agent/invoke", body)
     end
 
@@ -110,7 +111,7 @@ module FetchHive
     # ── Hive Agent ──────────────────────────────────────────────────────────────
 
     # Start a Hive Agent run asynchronously. Requires a callback URL.
-    def invoke_hive_agent(hive_agent:, objective:, callback_url:, sources: nil, metadata: nil)
+    def invoke_hive_agent(hive_agent:, objective:, callback_url:, sources: nil, metadata: nil, unattended: nil, budget_policy: nil)
       raise ArgumentError, "callback_url is required for Hive Agent invocation" if callback_url.nil? || callback_url.to_s.strip.empty?
 
       body = {
@@ -120,6 +121,8 @@ module FetchHive
       }
       body[:sources] = sources if sources
       body[:metadata] = metadata if metadata
+      body[:unattended] = unattended unless unattended.nil?
+      body[:budget_policy] = budget_policy if budget_policy
       post("/hive-agent/invoke", body)
     end
 
@@ -127,6 +130,18 @@ module FetchHive
 
     def get_request(id:)
       request("GET", "/public/requests/#{id}")
+    end
+
+    def get_agent_delegation(id:)
+      request("GET", "/agent/delegations/#{id}")
+    end
+
+    def cancel_agent_delegation(id:)
+      post("/agent/delegations/#{id}/cancel", {})
+    end
+
+    def list_thread_delegations(thread_id:)
+      request("GET", "/agent/threads/#{thread_id}/delegations")
     end
 
     def list_knowledge_bases(workspace_id:)
