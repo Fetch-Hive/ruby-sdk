@@ -9,7 +9,7 @@ Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts,
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.4.0"
+gem "fetch_hive", "~> 0.4.1"
 ```
 
 Then run:
@@ -110,6 +110,27 @@ client.invoke_agent_stream(
 end
 ```
 
+## Tool approvals
+
+`tool_approval` is optional on `invoke_agent`, `invoke_agent_stream`, and `invoke_workflow`. Omit it, or pass `"policy"`, to follow saved rules. `"auto_approve"` applies to this call only, and only when the API key is allowed to auto-approve actions.
+
+When a response has `status` `"awaiting_approval"`, decide with the API key. The run resumes on the server. Do not send `decided_tool_approvals`.
+
+```ruby
+client.decide_tool_action_approval(workspace_id: "WORKSPACE_ID", id: "APPROVAL_ID", decision: "allow_once")
+
+pending = client.list_tool_action_approvals(workspace_id: "WORKSPACE_ID", status: "pending")
+one = client.get_tool_action_approval(workspace_id: "WORKSPACE_ID", id: "APPROVAL_ID")
+
+reply = client.invoke_agent(
+  agent: "my-agent",
+  message: "Send the follow-up",
+  tool_approval: "auto_approve"
+)
+```
+
+`decision` is `"allow_once"` or `"deny"`. `always_allow` is only available in the dashboard.
+
 ## Multimodal (image) inputs
 
 ```ruby
@@ -149,7 +170,7 @@ client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 
 ## Version
 
-0.4.0
+0.4.1
 
 ## License
 

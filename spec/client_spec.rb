@@ -281,7 +281,7 @@ RSpec.describe FetchHive::Client do
       client.invoke_agent(agent: "ag", message: "hi")
       expect(a_request(:post, "#{base_url}/agent/invoke").with { |req|
         body = JSON.parse(req.body)
-        %w[thread_id user metadata messages attachments].none? { |k| body.key?(k) }
+        %w[thread_id user metadata messages attachments tool_approval].none? { |k| body.key?(k) }
       }).to have_been_made
     end
   end
@@ -439,6 +439,43 @@ RSpec.describe FetchHive::Client do
     end
   end
 
+  describe "TA1: tool action approvals" do
+    it "lists, shows, and decides on the public approval paths" do
+      list = stub_request(:get, "#{base_url}/public/workspaces/ws_1/tool_action_approvals?status=pending&agent_id=agt_1&limit=10")
+        .to_return(status: 200, body: '{"approvals":[]}', headers: { "Content-Type" => "application/json" })
+      show = stub_request(:get, "#{base_url}/public/workspaces/ws_1/tool_action_approvals/appr_1")
+        .to_return(status: 200, body: '{"approval":{"id":"appr_1"}}', headers: { "Content-Type" => "application/json" })
+      decide = stub_request(:post, "#{base_url}/public/workspaces/ws_1/tool_action_approvals/appr_1/decide")
+        .with(body: hash_including("decision" => "allow_once"))
+        .to_return(status: 200, body: '{"approval":{"id":"appr_1"}}', headers: { "Content-Type" => "application/json" })
+
+      client.list_tool_action_approvals(workspace_id: "ws_1", status: "pending", agent_id: "agt_1", limit: 10)
+      client.get_tool_action_approval(workspace_id: "ws_1", id: "appr_1")
+      client.decide_tool_action_approval(workspace_id: "ws_1", id: "appr_1", decision: "allow_once")
+
+      expect(list).to have_been_requested
+      expect(show).to have_been_requested
+      expect(decide).to have_been_requested
+    end
+  end
+
+  describe "TA2: tool_approval" do
+    it "includes tool_approval on agent and workflow invoke only when provided" do
+      captured = []
+      stub_request(:post, %r{/(agent|workflow)/invoke}).with { |req|
+        captured << JSON.parse(req.body)
+        true
+      }.to_return(status: 200, body: '{"response":"ok"}', headers: { "Content-Type" => "application/json" })
+
+      client.invoke_agent(agent: "a", message: "m")
+      client.invoke_workflow(deployment: "d")
+      client.invoke_agent(agent: "a", message: "m", tool_approval: "auto_approve")
+      client.invoke_workflow(deployment: "d", tool_approval: "policy")
+
+      expect(captured.map { |body| body["tool_approval"] }).to eq([nil, nil, "auto_approve", "policy"])
+    end
+  end
+
   # ── Streaming ─────────────────────────────────────────────────────────────────
 
   let(:sse_body) do
@@ -464,11 +501,11 @@ RSpec.describe FetchHive::Client do
   describe "S2: invoke_agent_stream" do
     it "sends streaming: true and yields parsed SSE events" do
       stub_request(:post, "#{base_url}/agent/invoke")
-        .with(body: hash_including("streaming" => true, "metadata" => { "plan" => "enterprise" }))
+        .with(body: hash_including("streaming" => true, "metadata" => { "plan" => "enterprise" }, "tool_approval" => "auto_approve"))
         .to_return(status: 200, body: sse_body, headers: { "Content-Type" => "text/event-stream" })
 
       events = []
-      client.invoke_agent_stream(agent: "ag", message: "hi", metadata: { plan: "enterprise" }) { |e| events << e }
+      client.invoke_agent_stream(agent: "ag", message: "hi", metadata: { plan: "enterprise" }, tool_approval: "auto_approve") { |e| events << e }
       expect(events.map { |e| e["type"] }).to eq(%w[response usage])
     end
   end

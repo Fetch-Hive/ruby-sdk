@@ -2,6 +2,7 @@
 
 require "faraday"
 require "json"
+require "uri"
 require_relative "streaming"
 
 module FetchHive
@@ -65,12 +66,13 @@ module FetchHive
     # ── Workflow ────────────────────────────────────────────────────────────────
 
     # Invoke a workflow deployment (sync or async).
-    def invoke_workflow(deployment:, variant: nil, inputs: nil, async_mode: false, callback_url: nil, user: nil, metadata: nil)
+    def invoke_workflow(deployment:, variant: nil, inputs: nil, async_mode: false, callback_url: nil, user: nil, metadata: nil, tool_approval: nil)
       body = { deployment: deployment }
       body[:variant] = variant if variant
       body[:inputs]  = inputs  if inputs
       body[:user]    = user    if user
       body[:metadata] = metadata if metadata
+      body[:tool_approval] = tool_approval if tool_approval
       if async_mode
         body[:async] = { enabled: true }
         body[:async][:callback_url] = callback_url if callback_url
@@ -81,7 +83,7 @@ module FetchHive
     # ── Agent ───────────────────────────────────────────────────────────────────
 
     # Send a message to an agent and return the full response hash.
-    def invoke_agent(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil, async: nil)
+    def invoke_agent(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil, async: nil, tool_approval: nil)
       body = { agent: agent, message: message, streaming: false }
       body[:thread_id]  = thread_id  if thread_id
       body[:user]       = user       if user
@@ -90,13 +92,14 @@ module FetchHive
       body[:attachments] = attachments || image_urls if attachments || image_urls
       body[:known_artifact_refs] = known_artifact_refs if known_artifact_refs
       body[:artifact_refs] = artifact_refs if artifact_refs
+      body[:tool_approval] = tool_approval if tool_approval
       body[:async] = async if async
       post("/agent/invoke", body)
     end
 
     # Send a message to an agent and stream SSE events.
     # Yields each parsed event hash. Returns an Enumerator when no block given.
-    def invoke_agent_stream(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil, &block)
+    def invoke_agent_stream(agent:, message:, thread_id: nil, user: nil, metadata: nil, messages: nil, image_urls: nil, attachments: nil, known_artifact_refs: nil, artifact_refs: nil, tool_approval: nil, &block)
       body = { agent: agent, message: message, streaming: true }
       body[:thread_id]  = thread_id  if thread_id
       body[:user]       = user       if user
@@ -105,6 +108,7 @@ module FetchHive
       body[:attachments] = attachments || image_urls if attachments || image_urls
       body[:known_artifact_refs] = known_artifact_refs if known_artifact_refs
       body[:artifact_refs] = artifact_refs if artifact_refs
+      body[:tool_approval] = tool_approval if tool_approval
       post_stream("/agent/invoke", body, &block)
     end
 
@@ -142,6 +146,29 @@ module FetchHive
 
     def list_thread_delegations(thread_id:)
       request("GET", "/agent/threads/#{thread_id}/delegations")
+    end
+
+    # List tool-action approvals. The server defaults status to pending.
+    def list_tool_action_approvals(workspace_id:, status: nil, agent_id: nil, run_id: nil, request_id: nil, cursor: nil, limit: nil)
+      pairs = []
+      pairs << ["status", status] if status
+      pairs << ["agent_id", agent_id] if agent_id
+      pairs << ["run_id", run_id] if run_id
+      pairs << ["request_id", request_id] if request_id
+      pairs << ["cursor", cursor] if cursor
+      pairs << ["limit", limit] unless limit.nil?
+      path = "/public/workspaces/#{workspace_id}/tool_action_approvals"
+      path = "#{path}?#{URI.encode_www_form(pairs)}" unless pairs.empty?
+      request("GET", path)
+    end
+
+    def get_tool_action_approval(workspace_id:, id:)
+      request("GET", "/public/workspaces/#{workspace_id}/tool_action_approvals/#{id}")
+    end
+
+    # decision is "allow_once" or "deny". An API-key run resumes on the server.
+    def decide_tool_action_approval(workspace_id:, id:, decision:)
+      post("/public/workspaces/#{workspace_id}/tool_action_approvals/#{id}/decide", { decision: decision })
     end
 
     def list_knowledge_bases(workspace_id:)
