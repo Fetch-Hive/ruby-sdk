@@ -9,7 +9,7 @@ Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts,
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.4.1"
+gem "fetch_hive", "~> 0.5.0"
 ```
 
 Then run:
@@ -77,6 +77,24 @@ run = client.invoke_workflow(
   callback_url: "https://example.com/webhook"
 )
 puts "Queued: #{run['run_id']}"
+```
+
+## Run a pipeline
+
+A pipeline runs several workflows in a row and can stop at checkpoints for a person, so a run is always asynchronous: the call returns at once and the result is sent to your callback URL.
+
+```ruby
+run = client.invoke_pipeline(
+  deployment: "seo-article",
+  variant: "production",
+  inputs: { keyword: "running shoes" },
+  callback_url: "https://example.com/hooks/pipeline"
+)["pipeline_run"]
+
+status = client.get_pipeline_run(run_id: run["id"])
+# At a checkpoint: read what it asks, then send the person's answer.
+checkpoint = client.get_pipeline_checkpoint(run_id: run["id"])
+client.answer_pipeline_checkpoint(run_id: run["id"], answer: { approved: true })
 ```
 
 ## Invoke an agent
@@ -170,7 +188,7 @@ client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 
 ## Version
 
-0.4.1
+0.5.0
 
 ## License
 

@@ -169,6 +169,39 @@ RSpec.describe FetchHive::Client do
 
   # ── Workflow ──────────────────────────────────────────────────────────────────
 
+  # PL1 — invoke_pipeline is always async with the callback
+  describe "PL1: invoke_pipeline" do
+    it "POSTs the deployment, variant and an async block" do
+      stub = stub_request(:post, "#{base_url}/pipeline/invoke")
+        .with(body: { "deployment" => "seo-article", "variant" => "staging", "inputs" => { "keyword" => "shoes" },
+                      "async" => { "enabled" => true, "callback_url" => "https://cb.example.com" } })
+        .to_return(status: 202, body: '{"pipeline_run":{"id":"run_1"}}', headers: { "Content-Type" => "application/json" })
+
+      result = client.invoke_pipeline(deployment: "seo-article", variant: "staging", inputs: { keyword: "shoes" },
+                                      callback_url: "https://cb.example.com")
+      expect(stub).to have_been_requested
+      expect(result["pipeline_run"]["id"]).to eq("run_1")
+    end
+  end
+
+  # PL2 — run, checkpoint, answer and cancel
+  describe "PL2: pipeline run calls" do
+    it "uses the pipeline run paths" do
+      json = { headers: { "Content-Type" => "application/json" }, body: "{}" }
+      run = stub_request(:get, "#{base_url}/pipeline/runs/run_1").to_return(**json)
+      checkpoint = stub_request(:get, "#{base_url}/pipeline/runs/run_1/checkpoint").to_return(**json)
+      answer = stub_request(:post, "#{base_url}/pipeline/runs/run_1/checkpoint/answer")
+        .with(body: { "answer" => { "approved" => true }, "request_id" => "cp_1" }).to_return(**json)
+      cancel = stub_request(:post, "#{base_url}/pipeline/runs/run_1/cancel").to_return(**json)
+
+      client.get_pipeline_run(run_id: "run_1")
+      client.get_pipeline_checkpoint(run_id: "run_1")
+      client.answer_pipeline_checkpoint(run_id: "run_1", answer: { approved: true }, request_id: "cp_1")
+      client.cancel_pipeline_run(run_id: "run_1")
+      [run, checkpoint, answer, cancel].each { |stub| expect(stub).to have_been_requested }
+    end
+  end
+
   # W1 — invoke_workflow POSTs to /workflow/invoke
   describe "W1: invoke_workflow endpoint" do
     it "POSTs to /workflow/invoke" do

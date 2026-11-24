@@ -80,6 +80,42 @@ module FetchHive
       post("/workflow/invoke", body)
     end
 
+    # ── Pipeline ────────────────────────────────────────────────────────────────
+
+    # Starts a pipeline run. Always asynchronous: the result goes to callback_url. Name a deployment (and optionally
+    # a variant), or a pipeline id to run its default variant. Returns { "pipeline_run" => {...} }.
+    def invoke_pipeline(callback_url:, deployment: nil, variant: nil, pipeline: nil, inputs: nil, max_spend_usd: nil)
+      body = {}
+      body[:deployment] = deployment if deployment
+      body[:variant] = variant if variant
+      body[:pipeline] = pipeline if pipeline
+      body[:inputs] = inputs if inputs
+      body[:max_spend_usd] = max_spend_usd if max_spend_usd
+      body[:async] = { enabled: true, callback_url: callback_url }
+      post("/pipeline/invoke", body)
+    end
+
+    def get_pipeline_run(run_id:)
+      request("GET", "/pipeline/runs/#{run_id}")
+    end
+
+    # What the run is waiting for at a checkpoint, and the answer shape to send.
+    def get_pipeline_checkpoint(run_id:)
+      request("GET", "/pipeline/runs/#{run_id}/checkpoint")
+    end
+
+    # request_id is the id of the checkpoint you were answering, so a late retry never lands on a later one.
+    def answer_pipeline_checkpoint(run_id:, answer:, request_id: nil, node_key: nil)
+      body = { answer: answer }
+      body[:request_id] = request_id if request_id
+      body[:node_key] = node_key if node_key
+      post("/pipeline/runs/#{run_id}/checkpoint/answer", body)
+    end
+
+    def cancel_pipeline_run(run_id:)
+      post("/pipeline/runs/#{run_id}/cancel", {})
+    end
+
     # ── Agent ───────────────────────────────────────────────────────────────────
 
     # Send a message to an agent and return the full response hash.
