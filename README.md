@@ -9,7 +9,7 @@ Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts,
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.5.0"
+gem "fetch_hive", "~> 0.6.0"
 ```
 
 Then run:
@@ -95,6 +95,16 @@ status = client.get_pipeline_run(run_id: run["id"])
 # At a checkpoint: read what it asks, then send the person's answer.
 checkpoint = client.get_pipeline_checkpoint(run_id: run["id"])
 client.answer_pipeline_checkpoint(run_id: run["id"], answer: { approved: true })
+```
+
+Building an app on a pipeline template? Set it up in your workspace, read its start inputs and estimated cost, and follow runs by polling, with checkpoint emails off because your app shows them:
+
+```ruby
+client.install_pipeline_template(template_id: "TEMPLATE_ID") # same pipeline back on later calls
+definition = client.get_pipeline_deployment(deployment: "seo-article")
+run = client.invoke_pipeline(deployment: "seo-article", inputs: { keyword: "running shoes" },
+                             poll: true, notify_checkpoints: false)["pipeline_run"]
+history = client.list_pipeline_runs(deployment: "seo-article", per_page: 10)
 ```
 
 ## Invoke an agent
@@ -188,7 +198,7 @@ client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 
 ## Version
 
-0.5.0
+0.6.0
 
 ## License
 

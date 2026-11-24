@@ -82,17 +82,47 @@ module FetchHive
 
     # ── Pipeline ────────────────────────────────────────────────────────────────
 
-    # Starts a pipeline run. Always asynchronous: the result goes to callback_url. Name a deployment (and optionally
-    # a variant), or a pipeline id to run its default variant. Returns { "pipeline_run" => {...} }.
-    def invoke_pipeline(callback_url:, deployment: nil, variant: nil, pipeline: nil, inputs: nil, max_spend_usd: nil)
+    # Starts a pipeline run. Always asynchronous: the result goes to callback_url, or with poll: true you follow it
+    # with get_pipeline_run and get_pipeline_checkpoint. notify_checkpoints: false sends no checkpoint email or
+    # Telegram message, for an app that shows checkpoints itself. Name a deployment (and optionally a variant), or a
+    # pipeline id to run its default variant. Returns { "pipeline_run" => {...} }.
+    def invoke_pipeline(callback_url: nil, deployment: nil, variant: nil, pipeline: nil, inputs: nil, max_spend_usd: nil,
+                        poll: false, notify_checkpoints: nil)
       body = {}
       body[:deployment] = deployment if deployment
       body[:variant] = variant if variant
       body[:pipeline] = pipeline if pipeline
       body[:inputs] = inputs if inputs
       body[:max_spend_usd] = max_spend_usd if max_spend_usd
+      body[:notify_checkpoints] = notify_checkpoints unless notify_checkpoints.nil?
       body[:async] = { enabled: true, callback_url: callback_url }
+      body[:async][:poll] = true if poll
       post("/pipeline/invoke", body)
+    end
+
+    # Sets a pipeline template up in this API key's workspace and deploys it. Safe to call before every run: when
+    # the workspace has it already, the same pipeline and deployment come back with "installed" => false.
+    def install_pipeline_template(template_id:, deployment: nil)
+      body = {}
+      body[:deployment] = deployment if deployment
+      post("/pipeline/templates/#{template_id}/install", body)
+    end
+
+    # A deployed pipeline's start inputs, stages, checkpoints and estimated cost per run.
+    def get_pipeline(pipeline_id:, variant: nil)
+      request("GET", pipeline_query("/pipeline/pipelines/#{pipeline_id}", [["variant", variant]]))
+    end
+
+    # The same as get_pipeline, by deployment key.
+    def get_pipeline_deployment(deployment:, variant: nil)
+      request("GET", pipeline_query("/pipeline/deployments/#{deployment}", [["variant", variant]]))
+    end
+
+    # Earlier pipeline runs, newest first, with their start inputs. per_page is up to 50.
+    def list_pipeline_runs(pipeline: nil, deployment: nil, status: nil, page: nil, per_page: nil)
+      pairs = [["pipeline", pipeline], ["deployment", deployment], ["status", status], ["page", page],
+               ["per_page", per_page]]
+      request("GET", pipeline_query("/pipeline/runs", pairs))
     end
 
     def get_pipeline_run(run_id:)
@@ -300,6 +330,11 @@ module FetchHive
     end
 
     private
+
+    def pipeline_query(path, pairs)
+      present = pairs.reject { |_key, value| value.nil? || value == "" }
+      present.empty? ? path : "#{path}?#{URI.encode_www_form(present)}"
+    end
 
     def default_headers
       {

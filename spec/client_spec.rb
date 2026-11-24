@@ -202,6 +202,36 @@ RSpec.describe FetchHive::Client do
     end
   end
 
+  # PL3 — a polled run without a callback, checkpoint messages off
+  describe "PL3: invoke_pipeline with poll" do
+    it "sends poll and notify_checkpoints" do
+      stub = stub_request(:post, "#{base_url}/pipeline/invoke")
+        .with(body: { "deployment" => "seo-article", "inputs" => { "keyword" => "shoes" }, "notify_checkpoints" => false,
+                      "async" => { "enabled" => true, "callback_url" => nil, "poll" => true } })
+        .to_return(status: 202, body: '{"pipeline_run":{"id":"run_2"}}', headers: { "Content-Type" => "application/json" })
+
+      client.invoke_pipeline(deployment: "seo-article", inputs: { keyword: "shoes" }, poll: true, notify_checkpoints: false)
+      expect(stub).to have_been_requested
+    end
+  end
+
+  # PL4 — template install, definition and run list
+  describe "PL4: pipeline template and history calls" do
+    it "uses the template, definition and run list paths" do
+      json = { headers: { "Content-Type" => "application/json" }, body: "{}" }
+      install = stub_request(:post, "#{base_url}/pipeline/templates/tpl_1/install").to_return(**json)
+      by_id = stub_request(:get, "#{base_url}/pipeline/pipelines/pipe_1").to_return(**json)
+      by_name = stub_request(:get, "#{base_url}/pipeline/deployments/seo-article?variant=staging").to_return(**json)
+      runs = stub_request(:get, "#{base_url}/pipeline/runs?deployment=seo-article&per_page=10&status=completed").to_return(**json)
+
+      client.install_pipeline_template(template_id: "tpl_1")
+      client.get_pipeline(pipeline_id: "pipe_1")
+      client.get_pipeline_deployment(deployment: "seo-article", variant: "staging")
+      client.list_pipeline_runs(deployment: "seo-article", status: "completed", per_page: 10)
+      [install, by_id, by_name, runs].each { |stub| expect(stub).to have_been_requested }
+    end
+  end
+
   # W1 — invoke_workflow POSTs to /workflow/invoke
   describe "W1: invoke_workflow endpoint" do
     it "POSTs to /workflow/invoke" do
