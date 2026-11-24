@@ -146,6 +146,19 @@ module FetchHive
       post("/pipeline/runs/#{run_id}/cancel", {})
     end
 
+    # What a re-run with these changes would reuse and run, and its cost. Starts nothing.
+    def plan_pipeline_revision(run_id:, changes:)
+      post("/pipeline/runs/#{run_id}/revisions/plan", { changes: changes })
+    end
+
+    # Re-run a finished run with changes. Pass confirmed: true once the person agreed to the plan's cost.
+    def create_pipeline_revision(run_id:, changes:, confirmed: false, callback_url: nil, max_spend_usd: nil)
+      body = { changes: changes, confirmed: confirmed }
+      body[:callback_url] = callback_url if callback_url
+      body[:max_spend_usd] = max_spend_usd if max_spend_usd
+      post("/pipeline/runs/#{run_id}/revisions", body)
+    end
+
     # ── Agent ───────────────────────────────────────────────────────────────────
 
     # Send a message to an agent and return the full response hash.

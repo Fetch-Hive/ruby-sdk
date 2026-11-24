@@ -9,7 +9,7 @@ Official Ruby SDK for [Fetch Hive](https://fetchhive.com) — invoke AI prompts,
 Add to your `Gemfile`:
 
 ```ruby
-gem "fetch_hive", "~> 0.6.0"
+gem "fetch_hive", "~> 0.6.1"
 ```
 
 Then run:
@@ -107,6 +107,13 @@ run = client.invoke_pipeline(deployment: "seo-article", inputs: { keyword: "runn
 history = client.list_pipeline_runs(deployment: "seo-article", per_page: 10)
 ```
 
+Re-run from a changed answer or a failed stage: plan first (shows what runs again and its cost), then confirm:
+
+```ruby
+plan = client.plan_pipeline_revision(run_id: run_id, changes: { rerun: ["write"] })
+client.create_pipeline_revision(run_id: run_id, changes: { rerun: ["write"] }, confirmed: true)
+```
+
 ## Invoke an agent
 
 ```ruby
@@ -198,7 +205,7 @@ client = FetchHive::Client.new  # picks up FETCH_HIVE_API_KEY automatically
 
 ## Version
 
-0.6.0
+0.6.1
 
 ## License
 

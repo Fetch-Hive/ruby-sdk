@@ -202,6 +202,22 @@ RSpec.describe FetchHive::Client do
     end
   end
 
+  # PL4 — re-run plan, then a confirmed re-run
+  describe "PL4: pipeline revisions" do
+    it "plans, then starts a confirmed re-run" do
+      plan = stub_request(:post, "#{base_url}/pipeline/runs/run_1/revisions/plan")
+             .with(body: { changes: { rerun: ["write"] } }.to_json)
+             .to_return(status: 200, body: "{}", headers: { "Content-Type" => "application/json" })
+      create = stub_request(:post, "#{base_url}/pipeline/runs/run_1/revisions")
+               .with(body: { changes: { rerun: ["write"] }, confirmed: true }.to_json)
+               .to_return(status: 200, body: "{}", headers: { "Content-Type" => "application/json" })
+
+      client.plan_pipeline_revision(run_id: "run_1", changes: { rerun: ["write"] })
+      client.create_pipeline_revision(run_id: "run_1", changes: { rerun: ["write"] }, confirmed: true)
+      [plan, create].each { |stub| expect(stub).to have_been_requested }
+    end
+  end
+
   # PL3 — a polled run without a callback, checkpoint messages off
   describe "PL3: invoke_pipeline with poll" do
     it "sends poll and notify_checkpoints" do
